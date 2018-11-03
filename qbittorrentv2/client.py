@@ -32,6 +32,12 @@ class Client(object):
         else:
             self._is_authenticated = False
 
+
+    """ 
+    Request Methods
+    """
+
+
     def _get(self, endpoint, **kwargs):
         """
         Method to perform GET request on the API.
@@ -90,6 +96,12 @@ class Client(object):
 
         return data
 
+
+    """
+    Authentication methods
+    """
+
+
     def login(self, username='admin', password='admin'):
         """
         Method to authenticate the qBittorrent Client.
@@ -120,6 +132,11 @@ class Client(object):
         self._is_authenticated = False
         return response
 
+
+    """
+    Application methods
+    """
+
     @property
     def qbittorrent_version(self):
         """
@@ -139,66 +156,6 @@ class Client(object):
         Shutdown qBittorrent.
         """
         return self._get('app/shutdown')
-
-    def torrents(self, **filters):
-        """
-        Returns a list of torrents matching the supplied filters.
-
-        :param filter: Current status of the torrents.
-        :param category: Fetch all torrents with the supplied label.
-        :param sort: Sort torrents by.
-        :param reverse: Enable reverse sorting.
-        :param limit: Limit the number of torrents returned.
-        :param offset: Set offset (if less than 0, offset from end).
-
-        :return: list() of torrent with matching filter.
-        """
-        params = {}
-        for name, value in filters.items():
-            # make sure that old 'status' argument still works
-            name = 'filter' if name == 'status' else name
-            params[name] = value
-
-        return self._get('torrents/info', params=params)
-
-    def get_torrent(self, infohash):
-        """
-        Get details of the torrent.
-
-        :param infohash: INFO HASH of the torrent.
-        """
-        return self._get('torrents/properties/' + infohash.lower())
-
-    def get_torrent_trackers(self, infohash):
-        """
-        Get trackers for the torrent.
-
-        :param infohash: INFO HASH of the torrent.
-        """
-        return self._get('torrents/trackers/' + infohash.lower())
-
-    def get_torrent_webseeds(self, infohash):
-        """
-        Get webseeds for the torrent.
-
-        :param infohash: INFO HASH of the torrent.
-        """
-        return self._get('torrents/webseeds/' + infohash.lower())
-
-    def get_torrent_files(self, infohash):
-        """
-        Get list of files for the torrent.
-
-        :param infohash: INFO HASH of the torrent.
-        """
-        return self._get('torrents/files/' + infohash.lower())
-
-    @property
-    def global_transfer_info(self):
-        """
-        Get JSON data of the global transfer info of qBittorrent.
-        """
-        return self._get('transfer/info')
 
     @property
     def preferences(self):
@@ -260,14 +217,288 @@ class Client(object):
 
         return Proxy(self.url, prefs, self._is_authenticated, self.session)
 
-    def sync(self, rid=0):
+    def set_preferences(self, **kwargs):
+        """
+        Set preferences of qBittorrent.
+        Read all possible preferences @ https://git.io/fx2Y9
+
+        :param kwargs: set preferences in kwargs form.
+        """
+        json_data = "json={}".format(json.dumps(kwargs))
+        headers = {'content-type': 'application/x-www-form-urlencoded'}
+        return self._post('app/setPreferences', data=json_data,
+                          headers=headers)
+
+    @property
+    def get_default_save_path(self):
+        """
+        Get Default save path of qBittorrent.
+        """
+        return self._get('app/defaultSavePath')
+
+
+    """
+    Log methods
+    """
+
+
+    def get_log(self, normal=True, info=True, warning=True, critical=True, last_known_id=-1):
+        """
+        Get log of qBittorrent
+        
+        :param normal: Include normal messages.
+        :param info: Include info messages.
+        :param warning: Include warning messages.
+        :param critical: Include critical messages.
+        :param last_known_id: Exclude messages with "message id" <= ``last_known_id``.
+        """
+        data = {'normal': normal, 'info': info, 'warning': warning, 'critical': critical, 'last_known_id': last_known_id}
+        return self._post('log/main', data=data)
+
+    def get_peer_log(self, last_known_id=-1):
+        """
+        Get peers log
+
+        :param last_known_id: Exclude messages with "message id" <= ``last_known_id``.
+        """
+        data = {'last_known_id': last_known_id}
+        return self._post('log/peers', data=data)
+
+
+    """
+    Sync methods
+    """
+
+
+    def get_sync_maindata(self, rid=0):
         """
         Sync the torrents by supplied LAST RESPONSE ID.
-        Read more @ http://git.io/vEgXr
+        Read more @ https://git.io/fxgB8
 
         :param rid: Response ID of last request.
         """
         return self._get('sync/maindata', params={'rid': rid})
+    
+    def get_sync_torrentPeers(self, hash, rid=0):
+        """
+        Sync a torrent by its has supplied LAST RESPONSE ID.
+        Read more @ https://git.io/fxgBg
+
+        :param hash: Hash of the torrent.
+        :param rid: Response ID of last request.
+        """
+        return self._get('sync/torrentPeers', params={'hash': hash, 'rid': rid})
+
+    
+    """
+    Transfer info methods
+    """
+
+
+    @property
+    def global_transfer_info(self):
+        """
+        Get JSON data of the global transfer info of qBittorrent.
+        """
+        return self._get('transfer/info')
+
+    @property
+    def get_alternative_speed_status(self):
+        """
+        Get Alternative speed limits. (1/0)
+        """
+        return self._get('transfer/speedLimitsMode')
+
+    def toggle_alternative_speed(self):
+        """
+        Toggle alternative speed limits.
+        """
+        return self._get('transfer/toggleSpeedLimitsMode')
+
+    @property
+    def get_global_download_limit(self):
+        """
+        Get global download speed limit.
+        """
+        return self._get('transfer/downloadLimit')
+
+    def set_global_download_limit(self, limit):
+        """
+        Set global download speed limit.
+
+        :param limit: Speed limit in bytes.
+        """
+        return self._post('transfer/setDownloadLimit', data={'limit': limit})
+
+    @property
+    def get_global_upload_limit(self):
+        """
+        Get global upload speed limit.
+        """
+        return self._get('transfer/uploadLimit')
+
+    def set_global_upload_limit(self, limit):
+        """
+        Set global upload speed limit.
+
+        :param limit: Speed limit in bytes.
+        """
+        return self._post('transfer/setUploadLimit', data={'limit': limit})
+
+
+    """
+    Torrent management methods
+    """
+
+
+    def torrents(self, **filters):
+        """
+        Returns a list of torrents matching the supplied filters.
+
+        :param filter: Current status of the torrents.
+        :param category: Fetch all torrents with the supplied label.
+        :param sort: Sort torrents by.
+        :param reverse: Enable reverse sorting.
+        :param limit: Limit the number of torrents returned.
+        :param offset: Set offset (if less than 0, offset from end).
+
+        :return: list() of torrent with matching filter.
+        """
+        params = {}
+        for name, value in filters.items():
+            # make sure that old 'status' argument still works
+            name = 'filter' if name == 'status' else name
+            params[name] = value
+
+        return self._get('torrents/info', params=params)
+
+    def get_torrent(self, infohash):
+        """
+        Get details of the torrent.
+
+        :param infohash: INFO HASH of the torrent.
+        """
+        return self._post('torrents/properties', data={'hash': infohash})
+
+    def get_torrent_trackers(self, infohash):
+        """
+        Get trackers for the torrent.
+
+        :param infohash: INFO HASH of the torrent.
+        """
+        return self._post('torrents/trackers', data={'hash': infohash})
+
+    def get_torrent_webseeds(self, infohash):
+        """
+        Get webseeds for the torrent.
+
+        :param infohash: INFO HASH of the torrent.
+        """
+        return self._post('torrents/webseeds', data={'hash': infohash})
+
+    def get_torrent_files(self, infohash):
+        """
+        Get list of files for the torrent.
+
+        :param infohash: INFO HASH of the torrent.
+        """
+        return self._post('torrents/files', data={'hash': infohash})
+
+    def get_torrent_pieces_state(self, infohash):
+        """
+        Get pieces' state for the torrent.
+
+        :param infohash: INFO HASH of the torrent.
+        """
+        return self._post('torrents/pieceStates', data={'hash': infohash})
+
+    def get_torrent_pieces_hashes(self, infohash):
+        """
+        Get pieces' hash for the torrent.
+
+        :param infohash: INFO HASH of the torrent.
+        """
+        return self._post('torrents/pieceHashes', data={'hash': infohash})
+    
+    def pause(self, infohash_list):
+        """
+        Pause one or multiple torrents.
+
+        :param infohash_list: Single or list() of infohashes.
+        """
+        data = self._process_infohash_list(infohash_list)
+        return self._post('torrents/pause', data=data)
+
+    def pause_all(self):
+        """
+        Pause all torrents.
+        """
+        return self._post('torrents/pause', data={'hashes': 'all'})
+
+    def resume(self, infohash_list):
+        """
+        Resume one or multiple paused torrents.
+
+        :param infohash_list: Single or list() of infohashes.
+        """
+        data = self._process_infohash_list(infohash_list)
+        return self._post('torrents/resume', data=data)
+
+    def resume_all(self):
+        """
+        Resume all torrents.
+        """
+        return self._post('torrents/resume', data={'hashes': 'all'})
+        
+    def delete(self, infohash_list):
+        """
+        Delete torrents.
+
+        :param infohash_list: Single or list() of infohashes.
+        """
+        data = self._process_infohash_list(infohash_list)
+        data['deleteFiles'] = False
+        return self._post('torrents/delete', data=data)
+
+    def delete_permanently(self, infohash_list):
+        """
+        Permanently delete torrents.
+
+        :param infohash_list: Single or list() of infohashes.
+        """
+        data = self._process_infohash_list(infohash_list)
+        data['deleteFiles'] = True
+        return self._post('torrents/delete', data=data)
+
+    def recheck(self, infohash_list):
+        """
+        Recheck torrents.
+
+        :param infohash_list: Single or list() of infohashes.
+        """
+        data = self._process_infohash_list(infohash_list)
+        return self._post('torrents/recheck', data=data)
+        
+    def recheck_all(self):
+        """
+        Recheck all torrents.
+        """
+        return self._post('torrents/recheck', data={'hashes': 'all'})
+
+    def reannounce(self, infohash_list):
+        """
+        Reannounce torrents.
+
+        :param infohash_list: Single or list() of infohashes.
+        """
+        data = self._process_infohash_list(infohash_list)
+        return self._post('torrents/reannounce', data=data)
+        
+    def reannounce_all(self):
+        """
+        Reannounce all torrents.
+        """
+        return self._post('torrents/reannounce', data={'hashes': 'all'})
 
     def download_from_link(self, link, **kwargs):
         """
@@ -333,94 +564,6 @@ class Client(object):
                 'urls': trackers}
         return self._post('torrents/addTrackers', data=data)
 
-    @staticmethod
-    def _process_infohash_list(infohash_list):
-        """
-        Method to convert the infohash_list to qBittorrent API friendly values.
-
-        :param infohash_list: List of infohash.
-        """
-        if isinstance(infohash_list, list):
-            data = {'hashes': '|'.join([h.lower() for h in infohash_list])}
-        else:
-            data = {'hashes': infohash_list.lower()}
-        return data
-
-    def pause_all(self):
-        """
-        Pause all torrents.
-        """
-        return self._get('torrents/pause', data={'hash': 'all'})
-
-    def pause(self, infohash_list):
-        """
-        Pause multiple torrents.
-
-        :param infohash_list: Single or list() of infohashes.
-        """
-        data = self._process_infohash_list(infohash_list)
-        return self._post('torrents/pause', data=data)
-
-    def set_category(self, infohash_list, category):
-        """
-        Set the category on multiple torrents.
-
-        :param infohash_list: Single or list() of infohashes.
-        """
-        data = self._process_infohash_list(infohash_list)
-        data['category'] = category
-        return self._post('torrents/setCategory', data=data)
-
-    def resume_all(self):
-        """
-        Resume all torrents.
-        """
-        return self._get('torrents/resume', data={'hash': 'all'})
-
-    def resume(self, infohash_list):
-        """
-        Resume multiple paused torrents.
-
-        :param infohash_list: Single or list() of infohashes.
-        """
-        data = self._process_infohash_list(infohash_list)
-        return self._post('torrents/resume', data=data)
-
-    def delete(self, infohash_list):
-        """
-        Delete torrents.
-
-        :param infohash_list: Single or list() of infohashes.
-        """
-        data = self._process_infohash_list(infohash_list)
-        data['deleteFiles'] = False
-        return self._post('torrents/delete', data=data)
-
-    def delete_permanently(self, infohash_list):
-        """
-        Permanently delete torrents.
-
-        :param infohash_list: Single or list() of infohashes.
-        """
-        data = self._process_infohash_list(infohash_list)
-        data['deleteFiles'] = True
-        return self._post('torrents/delete', data=data)
-
-    def recheck(self, infohash_list):
-        """
-        Recheck torrents.
-
-        :param infohash_list: Single or list() of infohashes.
-        """
-        data = self._process_infohash_list(infohash_list)
-        return self._post('torrents/recheck', data=data)
-        
-    def recheck_all(self, infohash_list):
-        """
-        Recheck all torrents.
-        """
-        return self._post('torrents/recheck', data={'hash': 'all'})
-
     def increase_priority(self, infohash_list):
         """
         Increase priority of torrents.
@@ -474,45 +617,8 @@ class Client(object):
                 'id': file_id,
                 'priority': priority}
 
-        return self._post('torrents/filePrio', data=data)
+        return self._post('torrents/filePrio', data=data)        
 
-    # Get-set global download and upload speed limits.
-
-    def get_global_download_limit(self):
-        """
-        Get global download speed limit.
-        """
-        return self._get('transfer/downloadLimit')
-
-    def set_global_download_limit(self, limit):
-        """
-        Set global download speed limit.
-
-        :param limit: Speed limit in bytes.
-        """
-        return self._post('transfer/setDownloadLimit', data={'limit': limit})
-
-    global_download_limit = property(get_global_download_limit,
-                                     set_global_download_limit)
-
-    def get_global_upload_limit(self):
-        """
-        Get global upload speed limit.
-        """
-        return self._get('transfer/uploadLimit')
-
-    def set_global_upload_limit(self, limit):
-        """
-        Set global upload speed limit.
-
-        :param limit: Speed limit in bytes.
-        """
-        return self._post('transfer/setUploadLimit', data={'limit': limit})
-
-    global_upload_limit = property(get_global_upload_limit,
-                                   set_global_upload_limit)
-
-    # Get-set download and upload speed limits of the torrents.
     def get_torrent_download_limit(self, infohash_list):
         """
         Get download speed limit of the supplied torrents.
@@ -532,6 +638,18 @@ class Client(object):
         data = self._process_infohash_list(infohash_list)
         data.update({'limit': limit})
         return self._post('torrents/setDownloadLimit', data=data)
+
+    def set_torrent_share_limit(self, infohash_list, ratioLimit=-2, seedingTimeLimit=-2):
+        """
+        Set share limit of the supplied torrents.
+
+        :param infohash_list: Single or list() of infohashes.
+        :param ratioLimit: Max ratio the torrent should be seeded until. -2 means the global limit, -1 means no limit.
+        :param seedingTimeLimit: Max amount of time the torrent should be seeded. -2 means the global limit, -1 means no limit.
+        """
+        data = self._process_infohash_list(infohash_list)
+        data.update({'ratioLimit': ratioLimit, 'seedingTimeLimit': seedingTimeLimit})
+        return self._post('torrents/setShareLimits', data=data)
 
     def get_torrent_upload_limit(self, infohash_list):
         """
@@ -553,32 +671,86 @@ class Client(object):
         data.update({'limit': limit})
         return self._post('torrents/setUploadLimit', data=data)
 
-    # setting preferences
-    def set_preferences(self, **kwargs):
+    def set_location(self, infohash_list, location):
         """
-        Set preferences of qBittorrent.
-        Read all possible preferences @ http://git.io/vEgDQ
+        Set the location on multiple torrents.
 
-        :param kwargs: set preferences in kwargs form.
+        :param infohash_list: Single or list() of infohashes.
+        :param location: Location to download the torrent to.
         """
-        json_data = "json={}".format(json.dumps(kwargs))
-        headers = {'content-type': 'application/x-www-form-urlencoded'}
-        return self._post('app/setPreferences', data=json_data,
-                          headers=headers)
+        data = self._process_infohash_list(infohash_list)
+        data.update({'location': location})
+        return self._post('torrents/setLocation', data=data)
 
-    def get_alternative_speed_status(self):
+    def set_torrent_name(self, infohash, name):
         """
-        Get Alternative speed limits. (1/0)
-        """
-        return self._get('transfer/speedLimitsMode')
+        Rename a torrent.
 
-    alternative_speed_status = property(get_alternative_speed_status)
+        :param infohash: Infohash of the torrent to rename.
+        :param name: Name to rename the torrent to.
+        """
+        data = {'hash': infohash, 'name': name}
+        return self._post('torrents/rename', data=data)
 
-    def toggle_alternative_speed(self):
+    def set_category(self, infohash_list, category):
         """
-        Toggle alternative speed limits.
+        Set the category on multiple torrents.
+
+        :param infohash_list: Single or list() of infohashes.
+        :param category: The torrent category to set.
         """
-        return self._get('transfer/toggleSpeedLimitsMode')
+        data = self._process_infohash_list(infohash_list)
+        data['category'] = category
+        return self._post('torrents/setCategory', data=data)
+    
+    def add_category(self, category):
+        """
+        Add a new category.
+
+        :param category: The name of the category.
+        """
+        return self._post('torrents/createCategory', data={'category': category})
+    
+    def edit_category(self, category, savePath):
+        """
+        Edit a category.
+
+        :param category: The name of the category.
+        :param savePath: Path to save downloaded torrents to.
+        """
+        data = {'category': category, 'savePath': savePath}
+        return self._post('torrents/editCategory', data=data)
+    
+    def remove_category(self, category_list):
+        """
+        Remove one or more categories.
+
+        :param category_list: List of categories to remove.
+        """
+        if isinstance(category_list, list):
+            data = {'categories': '%0A'.join([h.lower() for h in category_list])}
+        else:
+            data = {'categories': category_list.lower()}
+        return self._post('torrents/removeCategories', data=data)
+
+    def set_automatic_torrent(self, infohash_list, enable):
+        """
+        Enable or disable automatic torrent management for one or multiple torrents.
+
+        :param infohash_list: Single or list() of infohashes.
+        :param enable: Enable or disable automatic torrent management.
+        """
+        data = self._process_infohash_list(infohash_list)
+        data['enable'] = enable
+        return self._post('torrents/setAutoManagement', data=data)
+
+    def set_automatic_torrent_all(self, enable=False):
+        """
+        Enable or disable automatic torrent management for  all torrents.
+        
+        :param enable: Enable or disable automatic torrent management.
+        """
+        return self._post('torrents/setAutoManagement', data={'hashes': 'all', 'enable': enable})
 
     def toggle_sequential_download(self, infohash_list):
         """
@@ -609,15 +781,108 @@ class Client(object):
         data.update({'value': json.dumps(value)})
         return self._post('torrents/setForceStart', data=data)
 
-    def add_feed(self, url):
+    def set_super_seeding(self, infohash_list, value):
         """
-        Add new RSS feed
+        Enable or disable super seeding for one or multiple torrents.
+
+        :param infohash_list: Single or list() of infohashes.
+        :param value: Enable or disable super seeding.
         """
-        data = {'url': url}
+        data = self._process_infohash_list(infohash_list)
+        data['value'] = value
+        return self._post('torrents/setSuperSeeding', data=data)
+
+    def set_super_seeding_all(self, value=False):
+        """
+        Enable or disable super seeding for  all torrents.
+        
+        :param value: Enable or disable super seeding.
+        """
+        return self._post('torrents/setSuperSeeding', data={'hashes': 'all', 'value': value})
+        
+    @staticmethod
+    def _process_infohash_list(infohash_list):
+        """
+        Method to convert the infohash_list to qBittorrent API friendly values.
+
+        :param infohash_list: List of infohash.
+        """
+        if isinstance(infohash_list, list):
+            data = {'hashes': '|'.join([h.lower() for h in infohash_list])}
+        else:
+            data = {'hashes': infohash_list.lower()}
+        return data
+
+    """
+    RSS Methods
+    """
+
+    def add_folder(self, path):
+        """
+        Add a new rss feed folder.
+        
+        :param path: Name of the rss folder to add.
+        """
+        return self._post('rss/addFolder', data={'path': path})
+
+    def add_feed(self, url, path):
+        """
+        Add new RSS feed.
+        
+        :param url: Url of the RSS feed to add.
+        :param path: Name of the RSS feed.
+        """
+        data = {'url': url, 'path': path}
         return self._post('rss/addFeed', data=data)
 
-    def get_item(self):
+    def remove_item(self, path):
         """
-        Add new RSS feed
+        Remove a rss feed or folder.
+        
+        :param path: Name of the rss folder to remove.
         """
-        return self._get('rss/items', data={'withData': True})
+        return self._post('rss/addFeed', data={'path': path})
+
+    def get_item(self, withData=False):
+        """
+        Get items of the existing RSS feeds.
+
+        :param withData: True if current feed data is needed.
+        """
+        return self._get('rss/items', data={'withData': withData})
+
+    def set_rule(self, ruleName, ruleDef):
+        """
+        Set a new auto-downloading rule.
+
+        :param ruleName: Rule name.
+        :param ruleDef: JSON encoded rule definition.
+        
+        See example @ https://git.io/fxhLq
+        """
+        data = {'ruleName': ruleName, 'ruleDef': ruleDef}
+        return self._post('rss/setRule', data=data)
+
+    def rename_rule(self, ruleName, newRuleName):
+        """
+        Rename an existing auto-downloading rule.
+
+        :param ruleName: Rule name to rename.
+        :param newRuleName: New rule name to rename to.
+        """
+        data = {'ruleName': ruleName, 'newRuleName': newRuleName}
+        return self._post('rss/renameRule', data=data)
+
+    def remove_rule(self, ruleName):
+        """
+        Remove an existing auto-downloading rule.
+
+        :param ruleName: Rule name to remove.
+        """
+        return self._post('rss/removeRule', data={'ruleName': ruleName})
+
+    def get_rules(self):
+        """
+        Returns all auto-downloading rules in JSON format.
+        """
+        return self._get('rss/rules')

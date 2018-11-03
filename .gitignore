@@ -6,7 +6,6 @@ __pycache__/
 *.so
 
 # User Files
-README.rst
 
 # Distribution / packaging
 .Python

@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 install_requires = open('requirements.txt').read().splitlines()
 
-__version__ = '0.3.1'
+__version__ = '1'
 
 
 def read(fname):
@@ -14,8 +14,8 @@ def read(fname):
 
 
 setup(
-    name='python-qbittorrent-v2',
-    description='Python wrapper for qBittorrent >4.1+',
+    name='python-qbittorrentv2',
+    description='Python wrapper for qBittorrent > 4.1+',
     version=__version__,
     long_description=read('README.rst'),
     license='The MIT License',
@@ -23,7 +23,7 @@ setup(
     keywords='torrent, qBittorent, API, wrapper',
     author='LoliKiller',
     author_email='smartdavid.2001@gmail.com',
-    url="https://github.com/Loli-Killer/python-qBittorrent",
+    url="https://github.com/Loli-Killer/python-qBittorrentv2",
     packages=find_packages(),
     include_package_data=True,
     install_requires=install_requires,
