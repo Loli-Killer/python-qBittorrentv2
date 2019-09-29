@@ -25,7 +25,7 @@ class Client(object):
             self._is_authenticated = False
             raise RuntimeError("""
                 This wrapper only supports qBittorrent applications
-                 with version higher than 3.1.x.
+                 with version higher than 4.1+
                  Please use the latest qBittorrent release.
                 """)
 
